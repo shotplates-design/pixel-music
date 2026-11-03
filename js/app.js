@@ -483,6 +483,8 @@ async function renderView() {
   else if (state.tab === "playlists") await renderPlaylists(token);
   else if (state.tab === "download") renderDownload();
   else renderSettings();
+  if (token !== renderToken) return;
+  mountInstallHint();
   renderModal();
 }
 
@@ -880,18 +882,13 @@ async function pasteLink() {
   }
 }
 
-function showInstallHint() {
+function mountInstallHint() {
   const ios = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
   const standalone = window.navigator.standalone === true || window.matchMedia("(display-mode: standalone)").matches;
   let dismissed = false;
   try { dismissed = localStorage.getItem("pixel-music-hint") === "1"; } catch { dismissed = false; }
-  const hint = document.querySelector("#hint");
-  if (!ios || standalone || dismissed) {
-    hint.hidden = true;
-    return;
-  }
-  hint.hidden = false;
-  hint.replaceChildren(
+  if (!ios || standalone || dismissed) return;
+  const hint = el("div", { id: "hint", class: "hint" }, [
     el("p", { class: "help", text: "Install from Safari: Share, then Add to Home Screen. Open Pixel Music from the icon for offline playback and lock-screen controls." }),
     el("button", {
       class: "btn ghost",
@@ -899,10 +896,11 @@ function showInstallHint() {
       text: "Hide",
       onclick: () => {
         try { localStorage.setItem("pixel-music-hint", "1"); } catch { /* private mode */ }
-        hint.hidden = true;
+        hint.remove();
       },
     }),
-  );
+  ]);
+  view.prepend(hint);
 }
 
 function bindChrome() {
@@ -952,7 +950,6 @@ function bindChrome() {
 
 async function init() {
   bindChrome();
-  showInstallHint();
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.register("./sw.js").catch(() => {});
   }
