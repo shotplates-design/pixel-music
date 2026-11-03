@@ -23,3 +23,20 @@ test("the installable shell is static and precached files exist", () => {
   assert.match(workflow, /deploy-pages/);
   assert.match(workflow, /node --test/);
 });
+
+test("the phone shell scrolls the tab list instead of the page", () => {
+  const html = readFileSync(new URL("../index.html", import.meta.url), "utf8");
+  const css = readFileSync(new URL("../css/app.css", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../js/app.js", import.meta.url), "utf8");
+  assert.match(html, /viewport-fit=cover/);
+  assert.doesNotMatch(html, /user-scalable\s*=\s*no/i);
+  assert.doesNotMatch(html, /maximum-scale\s*=\s*1/);
+  assert.match(css, /100dvh/);
+  assert.doesNotMatch(css, /100vh/);
+  assert.match(css, /overscroll-behavior:\s*none/);
+  assert.match(css, /-webkit-overflow-scrolling:\s*touch/);
+  assert.match(css, /touch-action:\s*pan-y/);
+  assert.match(css, /safe-area-inset-top/);
+  assert.match(css, /safe-area-inset-bottom/);
+  assert.doesNotMatch(app, /touchmove/);
+});

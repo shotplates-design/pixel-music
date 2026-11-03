@@ -40,7 +40,14 @@
 
 html, body {
   margin: 0;
-  min-height: 100%;
+  width: 100%;
+  height: 100%;
+  height: 100dvh;
+  max-height: 100dvh;
+  overflow: hidden;
+  overscroll-behavior: none;
+  position: fixed;
+  inset: 0;
   background:
     linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
     linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px),
@@ -50,6 +57,7 @@ html, body {
   font-family: var(--body);
   font-size: 16px;
   line-height: 1.45;
+  touch-action: manipulation;
 }
 
 body {
@@ -57,7 +65,7 @@ body {
   justify-content: center;
 }
 
-button, input { font: inherit; color: inherit; }
+button, input, label { font: inherit; color: inherit; touch-action: manipulation; }
 
 button { cursor: pointer; }
 
@@ -65,17 +73,20 @@ img, .art { image-rendering: pixelated; }
 
 .app {
   width: min(480px, 100%);
-  height: 100dvh;
+  height: 100%;
+  max-height: 100dvh;
   background: var(--bg);
   position: relative;
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  overscroll-behavior: none;
   border-left: 4px solid var(--line);
   border-right: 4px solid var(--line);
 }
 
 .topbar {
+  flex: 0 0 auto;
   display: flex;
   justify-content: space-between;
   align-items: flex-end;
@@ -83,6 +94,7 @@ img, .art { image-rendering: pixelated; }
   padding: calc(12px + var(--safe-t)) 12px 12px;
   background: var(--bg-2);
   border-bottom: 4px solid var(--line);
+  z-index: 6;
 }
 
 .logo {
@@ -107,8 +119,16 @@ img, .art { image-rendering: pixelated; }
   white-space: nowrap;
 }
 
+.stage {
+  flex: 1 1 0;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
 .hint {
-  margin: 12px;
+  margin: 0;
   padding: 12px;
   background: var(--panel);
   border: 4px solid var(--line);
@@ -116,27 +136,30 @@ img, .art { image-rendering: pixelated; }
 }
 
 .view {
-  flex: 1;
+  flex: 1 1 0;
   min-height: 0;
-  overflow: auto;
-  padding: 12px;
+  overflow-x: hidden;
+  overflow-y: scroll;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding: 12px 12px calc(24px + var(--safe-b));
+  overflow-anchor: none;
   display: grid;
   gap: 12px;
   align-content: start;
-  -webkit-overflow-scrolling: touch;
 }
 
 .nav, .player {
   position: relative;
+  flex: 0 0 auto;
   width: auto;
   background: var(--bg-2);
   border-top: 4px solid var(--line);
-  z-index: 5;
-  flex: 0 0 auto;
+  z-index: 6;
 }
 
 .nav {
-  bottom: 0;
   height: calc(var(--nav-h) + var(--safe-b));
   padding: 6px 8px var(--safe-b);
   display: grid;
@@ -145,7 +168,6 @@ img, .art { image-rendering: pixelated; }
 }
 
 .player {
-  bottom: calc(var(--nav-h) + var(--safe-b));
   min-height: var(--player-h);
   display: grid;
   grid-template-columns: 1fr auto;
@@ -171,8 +193,7 @@ img, .art { image-rendering: pixelated; }
 .btn.ghost { background: var(--bg); color: var(--ink); }
 .btn.danger { background: var(--red); }
 .btn:active, .nav-btn:active, .icon-btn:active {
-  transform: translate(2px, 2px);
-  box-shadow: 2px 2px 0 var(--line);
+  box-shadow: 0 0 0 var(--line);
 }
 
 .btn:disabled, .icon-btn:disabled { opacity: 0.55; }
@@ -274,6 +295,11 @@ button.panel { width: 100%; text-align: left; color: var(--ink); }
   display: grid;
   align-items: end;
   justify-content: center;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-y;
+  padding-top: var(--safe-t);
 }
 
 .sheet[hidden], .modal[hidden], .hint[hidden], .toast[hidden] { display: none; }
@@ -326,6 +352,5 @@ button.panel { width: 100%; text-align: left; color: var(--ink); }
 }
 
 @media (min-width: 520px) {
-  body { padding: 8px 0; }
-  .app { height: calc(100dvh - 16px); }
+  .app { height: 100%; max-height: 100dvh; }
 }
