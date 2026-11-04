@@ -1,6 +1,7 @@
 export const AUDIO_FORMATS = [
   { label: "MP3", exts: ["mp3"], mimes: ["audio/mpeg", "audio/mp3"] },
   { label: "AAC/M4A", exts: ["m4a", "aac"], mimes: ["audio/mp4", "audio/aac", "audio/x-m4a", "audio/m4a"] },
+  { label: "FLAC", exts: ["flac"], mimes: ["audio/flac", "audio/x-flac"] },
   { label: "Opus", exts: ["opus", "ogg"], mimes: ["audio/ogg", "audio/opus"] },
   { label: "WebM Opus", exts: ["webm"], mimes: ["audio/webm"] },
 ];
@@ -60,6 +61,7 @@ export function buildTrackRecord({
   artworkSize = 0,
   filename,
   addedAt,
+  album = "",
   source,
   sourceUrl = "",
 }) {
@@ -68,6 +70,7 @@ export function buildTrackRecord({
     id,
     title: String(title || "").trim() || "Untitled",
     artist: String(artist || "").trim() || "Unknown artist",
+    album: String(album || "").trim(),
     duration: Number.isFinite(seconds) && seconds > 0 ? seconds : null,
     mimeType: mimeType || "application/octet-stream",
     byteSize: Math.max(0, Math.trunc(Number(byteSize) || 0)),
