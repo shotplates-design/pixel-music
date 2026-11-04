@@ -1,7 +1,7 @@
 {
   "name": "Pixel Music",
   "short_name": "Pixel Music",
-  "description": "Personal offline music player for tracks you own and official SoundCloud downloads.",
+  "description": "Personal offline music player. Import files you own or save audio from Internet Archive.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",

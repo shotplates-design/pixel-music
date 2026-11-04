@@ -15,6 +15,7 @@ test("accepts efficient audio and rejects everything else", () => {
   assert.equal(classifyAudioFile({ name: "song.mp3", type: "audio/mpeg" }).ok, true);
   assert.equal(classifyAudioFile({ name: "song.m4a", type: "" }).label, "AAC/M4A");
   assert.equal(classifyAudioFile({ name: "song.aac", type: "audio/aac" }).ok, true);
+  assert.equal(classifyAudioFile({ name: "song.flac", type: "audio/flac" }).label, "FLAC");
   assert.equal(classifyAudioFile({ name: "song.opus", type: "audio/ogg" }).label, "Opus");
   assert.equal(classifyAudioFile({ name: "song.webm", type: "audio/webm" }).ok, true);
   assert.equal(classifyAudioFile({ name: "song.wav", type: "audio/wav" }).ok, false);
@@ -57,6 +58,6 @@ test("sorts newest first and removes a track from every playlist", () => {
 test("filenames and source lookup", () => {
   assert.equal(titleFromFilename("My_Song.mp3"), "My Song");
   assert.equal(safeFilename("A/B?.mp3", "mp3"), "AB.mp3");
-  assert.equal(findBySourceUrls([{ sourceUrl: "https://soundcloud.com/a/b", id: "1" }], ["https://soundcloud.com/a/b"]).id, "1");
-  assert.equal(findBySourceUrls([{ sourceUrl: "https://soundcloud.com/a/b" }], ["https://on.soundcloud.com/x"]), null);
+  assert.equal(findBySourceUrls([{ sourceUrl: "https://archive.org/download/item/song.flac", id: "1" }], ["https://archive.org/download/item/song.flac"]).id, "1");
+  assert.equal(findBySourceUrls([{ sourceUrl: "https://archive.org/download/item/song.flac" }], ["https://archive.org/download/other/song.flac"]), null);
 });
