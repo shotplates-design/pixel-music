@@ -1,4 +1,4 @@
-const CACHE = "pixel-music-v2";
+const CACHE = "pixel-music-v3";
 const ASSETS = [
   "./index.html",
   "./css/app.css",
@@ -9,8 +9,6 @@ const ASSETS = [
   "./js/library.js",
   "./js/playlists.js",
   "./js/queue.js",
-  "./js/soundcloud.js",
-  "./js/soundcloud-client.js",
   "./js/tags.js",
   "./manifest.json",
   "./fonts/PressStart2P-Regular.woff2",
