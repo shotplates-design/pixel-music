@@ -57,6 +57,6 @@ test("sorts newest first and removes a track from every playlist", () => {
 test("filenames and source lookup", () => {
   assert.equal(titleFromFilename("My_Song.mp3"), "My Song");
   assert.equal(safeFilename("A/B?.mp3", "mp3"), "AB.mp3");
-  assert.equal(findBySourceUrls([{ sourceUrl: "https://soundcloud.com/a/b", id: "1" }], ["https://soundcloud.com/a/b"]).id, "1");
-  assert.equal(findBySourceUrls([{ sourceUrl: "https://soundcloud.com/a/b" }], ["https://on.soundcloud.com/x"]), null);
+  assert.equal(findBySourceUrls([{ sourceUrl: "file:night-drive.mp3", id: "1" }], ["file:night-drive.mp3"]).id, "1");
+  assert.equal(findBySourceUrls([{ sourceUrl: "file:night-drive.mp3" }], ["file:other.mp3"]), null);
 });

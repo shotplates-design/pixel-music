@@ -1,4 +1,4 @@
-import { deleteTrackData, getMedia, listPlaylists, listTracks, loadSettings, replacePlaylists, saveSettings, saveTrack } from "./db.js";
+import { deleteTrackData, getMedia, listPlaylists, listTracks, replacePlaylists, saveTrack } from "./db.js";
 import { formatBytes, formatDuration } from "./format.js";
 import { createId } from "./ids.js";
 import {
@@ -12,20 +12,7 @@ import {
 } from "./library.js";
 import { addTrack, createPlaylist, deletePlaylist, moveTrack, removeTrackAt, renamePlaylist } from "./playlists.js";
 import { nextIndex, previousAction } from "./queue.js";
-import { isAllowedArtworkUrl, messageFor } from "./soundcloud.js";
-import { prepareSoundCloudDownload } from "./soundcloud-client.js";
 import { readTags } from "./tags.js";
-
-const IMPORT_CODES = new Set([
-  "not-downloadable",
-  "missing-download-url",
-  "unofficial-download",
-  "stream-manifest",
-  "not-audio",
-  "download-failed",
-  "set",
-  "not-a-track",
-]);
 
 const audio = document.querySelector("#audio");
 const view = document.querySelector("#view");
@@ -36,13 +23,10 @@ const state = {
   tab: "library",
   tracks: [],
   playlists: [],
-  settings: { clientId: "", clientSecret: "", token: null },
   storage: { used: 0, quota: null, usage: null, persisted: false },
   openPlaylistId: null,
-  linkDraft: "",
   playlistName: "",
   renameDraft: "",
-  download: { busy: false, message: "", code: "", preview: null, normalizedUrl: "" },
   queue: [],
   queueIndex: -1,
   currentId: null,
@@ -200,71 +184,6 @@ async function importFiles(fileList) {
   fileInput.value = "";
   await refresh();
   if (saved) toast(saved === 1 ? "Saved to your library." : `Saved ${saved} tracks.`);
-}
-
-async function onSoundCloudSubmit(event) {
-  event.preventDefault();
-  if (state.download.busy) return;
-  state.download = { busy: true, message: "Checking the official download flag…", code: "", preview: state.download.preview, normalizedUrl: "" };
-  await renderView();
-  try {
-    const result = await prepareSoundCloudDownload({
-      rawUrl: state.linkDraft,
-      credentials: state.settings,
-      tracks: state.tracks,
-    });
-    if (result.token) {
-      state.settings = { ...state.settings, token: result.token };
-      await saveSettings(state.settings);
-    }
-    if (!result.ok) {
-      state.download = {
-        busy: false,
-        message: result.message,
-        code: result.code,
-        preview: result.preview || null,
-        normalizedUrl: result.normalizedUrl || "",
-      };
-      await renderView();
-      return;
-    }
-    const artworkBlob = await fetchArtwork(result.preview?.artworkUrl);
-    const mime = result.audio.mime || "application/octet-stream";
-    const blob = new Blob([result.audio.bytes], { type: mime });
-    const duration = (await readDuration(blob)) ?? (result.preview?.durationMs ? result.preview.durationMs / 1000 : null);
-    const title = result.preview?.title || "Untitled";
-    const meta = buildTrackRecord({
-      id: createId(),
-      title,
-      artist: result.preview?.artist || "Unknown artist",
-      duration,
-      mimeType: mime,
-      byteSize: result.audio.byteSize,
-      artworkSize: artworkBlob?.size || 0,
-      filename: result.filename || safeFilename(title, result.audio.ext),
-      source: "soundcloud",
-      sourceUrl: result.sourceUrl || result.normalizedUrl,
-    });
-    await saveTrack(meta, blob, artworkBlob);
-    state.download = { busy: false, message: messageFor("saved"), code: "saved", preview: result.preview, normalizedUrl: result.normalizedUrl };
-    await refresh();
-  } catch {
-    state.download = { busy: false, message: messageFor("network"), code: "network", preview: null, normalizedUrl: "" };
-    await renderView();
-  }
-}
-
-async function fetchArtwork(url) {
-  if (!isAllowedArtworkUrl(url)) return null;
-  try {
-    const response = await fetch(url);
-    if (!response.ok) return null;
-    const type = response.headers.get("content-type") || "";
-    if (!type.startsWith("image/")) return null;
-    return await response.blob();
-  } catch {
-    return null;
-  }
 }
 
 function unlockAudio() {
@@ -481,7 +400,7 @@ async function renderView() {
   view.replaceChildren();
   if (state.tab === "library") await renderLibrary(token);
   else if (state.tab === "playlists") await renderPlaylists(token);
-  else if (state.tab === "download") renderDownload();
+  else if (state.tab === "import") renderImport();
   else renderSettings();
   if (token !== renderToken) return;
   mountInstallHint();
@@ -493,7 +412,7 @@ async function renderLibrary(token) {
     view.append(
       el("section", { class: "panel" }, [
         el("h2", { text: "Library" }),
-        el("p", { class: "help", text: "No tracks yet. Import files you own, or save an official SoundCloud download, from the Get tab." }),
+        el("p", { class: "help", text: "No tracks yet. Import files you own from the Import tab." }),
         el("button", { class: "btn", type: "button", text: "Import from Files", onclick: () => fileInput.click() }),
       ]),
     );
@@ -613,47 +532,12 @@ async function renderPlaylistDetail(token) {
   });
 }
 
-function renderDownload() {
-  const result = state.download;
+function renderImport() {
   view.append(el("section", { class: "panel" }, [
-    el("h2", { text: "Get music" }),
-    el("p", { class: "help", text: "Import MP3, AAC/M4A, or Opus files you own. They're stored unchanged — nothing is re-encoded." }),
+    el("h2", { text: "Import" }),
+    el("p", { class: "help", text: "Import MP3, AAC/M4A, or Opus files you own from the Files app. They're stored unchanged." }),
     el("button", { class: "btn", type: "button", text: "Import from Files", onclick: () => fileInput.click() }),
   ]));
-  const linkPanel = el("section", { class: "panel" }, [
-    el("h2", { text: "SoundCloud" }),
-    el("p", { class: "help", text: "Paste a track link from the share sheet. Extras like ?in= and &utm_ are ignored, including on.soundcloud.com and m.soundcloud.com short links. A file is saved only when the uploader enabled official downloads." }),
-    el("form", { class: "form", onsubmit: onSoundCloudSubmit }, [
-      el("label", { class: "visually-hidden", for: "sc-link", text: "SoundCloud link" }),
-      el("input", {
-        id: "sc-link",
-        value: state.linkDraft,
-        placeholder: "https://soundcloud.com/artist/track",
-        autocomplete: "off",
-        spellcheck: "false",
-        oninput: (event) => { state.linkDraft = event.target.value; },
-      }),
-      el("button", { class: "btn cyan", type: "submit", text: result.busy ? "Wait" : "Check", disabled: result.busy }),
-    ]),
-    el("button", { class: "btn ghost", type: "button", text: "Paste", onclick: pasteLink }),
-  ]);
-  view.append(linkPanel);
-  if (result.preview || result.message) {
-    const notice = el("section", { class: result.code === "saved" ? "notice ok" : "notice" });
-    if (result.preview?.artworkUrl && isAllowedArtworkUrl(result.preview.artworkUrl)) {
-      notice.append(el("img", { class: "art lg", src: result.preview.artworkUrl, alt: "" }));
-    }
-    if (result.preview) {
-      notice.append(el("p", { class: "track-title", text: result.preview.title || "Untitled" }));
-      notice.append(el("p", { class: "meta", text: result.preview.artist || "" }));
-    }
-    if (result.normalizedUrl) notice.append(el("p", { class: "fine", text: result.normalizedUrl }));
-    if (result.message) notice.append(el("p", { class: "help", text: result.message }));
-    if (IMPORT_CODES.has(result.code)) {
-      notice.append(el("button", { class: "btn", type: "button", text: "Import from Files", onclick: () => fileInput.click() }));
-    }
-    view.append(notice);
-  }
 }
 
 function renderSettings() {
@@ -665,34 +549,6 @@ function renderSettings() {
     el("p", { class: "help", text: quota }),
     el("p", { class: "help", text: storage.persisted ? "Persistent storage is on." : "Persistent storage is off. Safari may delete data if space runs low." }),
     el("button", { class: "btn", type: "button", text: "Keep on this iPhone", onclick: onPersist }),
-  ]));
-  view.append(el("section", { class: "panel" }, [
-    el("h2", { text: "SoundCloud API" }),
-    el("p", { class: "help", text: "Official downloads need your own SoundCloud app credentials. They're saved in this device's library database and are never included in the app." }),
-    el("form", { class: "stack", onsubmit: onSaveSettings }, [
-      el("label", { class: "field", text: "Client ID" }, [
-        el("input", {
-          id: "client-id",
-          value: state.settings.clientId,
-          autocomplete: "off",
-          spellcheck: "false",
-          oninput: (event) => { state.settings.clientId = event.target.value; },
-        }),
-      ]),
-      el("label", { class: "field", text: "Client secret" }, [
-        el("input", {
-          id: "client-secret",
-          type: "password",
-          value: state.settings.clientSecret,
-          autocomplete: "off",
-          oninput: (event) => { state.settings.clientSecret = event.target.value; },
-        }),
-      ]),
-      el("div", { class: "inline" }, [
-        el("button", { class: "btn", type: "submit", text: "Save" }),
-        el("button", { class: "btn danger", type: "button", text: "Clear", onclick: clearSettings }),
-      ]),
-    ]),
   ]));
 }
 
@@ -841,26 +697,6 @@ async function deleteTrack(id) {
   toast("Track deleted.");
 }
 
-async function onSaveSettings(event) {
-  event.preventDefault();
-  const previous = await loadSettings();
-  const changed = previous.clientId !== state.settings.clientId.trim() || previous.clientSecret !== state.settings.clientSecret.trim();
-  state.settings = {
-    clientId: state.settings.clientId.trim(),
-    clientSecret: state.settings.clientSecret.trim(),
-    token: changed ? null : state.settings.token,
-  };
-  await saveSettings(state.settings);
-  toast("API credentials saved on this device.");
-}
-
-async function clearSettings() {
-  state.settings = { clientId: "", clientSecret: "", token: null };
-  await saveSettings(state.settings);
-  await renderView();
-  toast("API credentials cleared.");
-}
-
 async function onPersist() {
   if (!navigator.storage?.persist) {
     toast("This browser doesn't support storage persistence.");
@@ -870,16 +706,6 @@ async function onPersist() {
   await refreshStorage();
   await renderView();
   toast(granted ? "Safari will try to keep your music on this device." : "Safari didn't grant persistent storage. Opening from the Home Screen helps.");
-}
-
-async function pasteLink() {
-  try {
-    const text = await navigator.clipboard.readText();
-    state.linkDraft = text.trim();
-    await renderView();
-  } catch {
-    toast("Clipboard is blocked. Long-press the field and paste.");
-  }
 }
 
 function mountInstallHint() {
@@ -956,7 +782,6 @@ async function init() {
   try {
     if (navigator.storage?.persist) await navigator.storage.persist();
   } catch { /* persistence is optional */ }
-  state.settings = await loadSettings();
   await refresh();
 }
 
